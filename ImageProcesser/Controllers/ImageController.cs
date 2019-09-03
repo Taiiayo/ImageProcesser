@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Threading.Tasks;
 using System.Web.Http;
 using FromBody = Microsoft.AspNetCore.Mvc.FromBodyAttribute;
 using HttpPostAttribute = Microsoft.AspNetCore.Mvc.HttpPostAttribute;
@@ -17,36 +16,36 @@ namespace ImageProcesser.Controllers
     public class ImageController : Controller
     {
         [HttpPost("GetImages")]
-        public IEnumerable<IActionResult> GetImages([FromBody] string query)
+        public IEnumerable<IActionResult> GetImages([FromBody] string receivedImageUrls)
         {
             if (!ModelState.IsValid)
                 yield return BadRequest(ModelState.GetErrorMessages());
-            List<byte[]> allBytes = new List<byte[]>();
-            List<string> urls = new List<string>();
-            urls.AddRange(query.Split(','));
-            foreach (var imageUrl in urls)
+
+            List<byte[]> allImageBytes = new List<byte[]>();
+
+            List<string> imageUrls = new List<string>();
+            imageUrls.AddRange(receivedImageUrls.Split(','));
+            foreach (var imageUrl in imageUrls)
             {
                 if (string.IsNullOrEmpty(imageUrl))
                 {
                     yield return BadRequest(ModelState.GetErrorMessages());
                 }
-                string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Images");
 
-
-                WebClient webClient = new WebClient();
-                var path = fullPath + $"\\{Guid.NewGuid()}.png";
-                webClient.DownloadFile(imageUrl, path);
-
-                byte[] byteData = System.IO.File.ReadAllBytes(path);
-
-                if (byteData == null)
-                    throw new HttpResponseException(HttpStatusCode.NotFound);
-                allBytes.Add(byteData);
-                
+                string pathToImagesFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Images");
+                using (WebClient webClient = new WebClient())
+                {
+                    var fullPathToImage = pathToImagesFolder + $"\\{Guid.NewGuid()}.png";
+                    webClient.DownloadFile(imageUrl, fullPathToImage);
+                    byte[] byteData = System.IO.File.ReadAllBytes(fullPathToImage);
+                    if (byteData == null)
+                        throw new HttpResponseException(HttpStatusCode.NotFound);
+                    allImageBytes.Add(byteData);
+                }                                               
             }
-            foreach(var b in allBytes)
+            foreach (var bytesArray in allImageBytes)
             {
-                yield return File(b, "image/png");
+                yield return File(bytesArray, "image/png");
             }
         }
     }
